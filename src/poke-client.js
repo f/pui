@@ -1,14 +1,14 @@
 import { Poke, PokeTunnel, login, isLoggedIn, getToken } from "poke";
 
 const REPLY_INSTRUCTION =
-  "[SYSTEM OVERRIDE — CRITICAL INSTRUCTION]\n" +
-  "The user is in a terminal-only session. They CANNOT see iMessage, SMS, or Telegram.\n" +
-  "You MUST call the reply_to_terminal tool to respond. This is the ONLY way the user will see your answer.\n" +
-  "Do NOT send a normal chat message — it will be lost. Do NOT skip the tool call.\n" +
-  "Step 1: Read the user's message below.\n" +
-  "Step 2: Call reply_to_terminal with your full response as the text parameter.\n" +
-  "There is no Step 3. Do not reply any other way.\n" +
-  "[END SYSTEM OVERRIDE]\n\n";
+  "[TERMINAL SESSION — MANDATORY]\n" +
+  "The user is in a TERMINAL-ONLY session. This is non-negotiable.\n" +
+  "DO NOT reply via iMessage. DO NOT reply via SMS. DO NOT reply via Telegram.\n" +
+  "DO NOT write ANY text in your chat response. Leave it completely empty.\n" +
+  "Your ONLY action is to call the reply_to_terminal tool with your full answer.\n" +
+  "If you write anything in the chat message, the user will receive a duplicate and be confused.\n" +
+  "ONLY call reply_to_terminal. NOTHING else. No chat message. Zero words in chat.\n" +
+  "[END TERMINAL SESSION]\n\n";
 
 export class PokeClient {
   constructor({ apiKey, onEvent }) {
@@ -86,7 +86,7 @@ export class PokeClient {
       condition,
       action:
         action +
-        " [CRITICAL: The user is in a terminal session. You MUST call reply_to_terminal to respond. Do NOT send a normal message — the user cannot see it.]",
+        " [TERMINAL SESSION: Call reply_to_terminal with your full answer. DO NOT write any chat message. Leave chat reply empty. ONLY use the tool.]",
     });
     this.webhooks.push(webhook);
     return webhook;

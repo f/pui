@@ -12,7 +12,7 @@ const TOOLS = [
   {
     name: "reply_to_terminal",
     description:
-      "Send a response to the user's terminal. Use this tool to deliver your reply so the user can read it in their TUI chat.",
+      "Send your full response to the user's terminal. The user is in a terminal-only session. Put your COMPLETE answer here. DO NOT write anything in your chat reply — leave it completely empty. No iMessage, no SMS, no Telegram. This tool is the ONLY way to respond.",
     inputSchema: {
       type: "object",
       properties: {
