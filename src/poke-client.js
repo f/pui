@@ -1,4 +1,7 @@
 import { Poke, PokeTunnel, login, isLoggedIn, getToken } from "poke";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 const REPLY_INSTRUCTION =
   "[TERMINAL SESSION — MANDATORY]\n" +
@@ -9,6 +12,18 @@ const REPLY_INSTRUCTION =
   "If you write anything in the chat message, the user will receive a duplicate and be confused.\n" +
   "ONLY call reply_to_terminal. NOTHING else. No chat message. Zero words in chat.\n" +
   "[END TERMINAL SESSION]\n\n";
+
+const CONFIG_DIR = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
+const STATE_PATH = join(CONFIG_DIR, "poke-tui", "state.json");
+
+function loadState() {
+  try { return JSON.parse(readFileSync(STATE_PATH, "utf-8")); } catch { return {}; }
+}
+
+function saveState(state) {
+  mkdirSync(join(CONFIG_DIR, "poke-tui"), { recursive: true });
+  writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
+}
 
 export class PokeClient {
   constructor({ apiKey, onEvent }) {
@@ -26,6 +41,19 @@ export class PokeClient {
     this.onEvent("status", "SDK initialized");
   }
 
+  async cleanupOldConnection() {
+    const state = loadState();
+    if (!state.connectionId) return;
+    const token = getToken() || this.apiKey;
+    const base = process.env.POKE_API ?? "https://poke.com/api/v1";
+    try {
+      await fetch(`${base}/mcp/connections/${state.connectionId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
+  }
+
   async startTunnel(mcpPort) {
     const token = getToken();
     if (!token && !this.apiKey) {
@@ -33,14 +61,18 @@ export class PokeClient {
       return;
     }
 
+    await this.cleanupOldConnection();
+
     this.tunnel = new PokeTunnel({
       url: this.mcpUrl,
       name: "Poke TUI Terminal",
       token: token || this.apiKey,
+      cleanupOnStop: false,
     });
 
     this.tunnel.on("connected", (info) => {
       this.tunnelInfo = info;
+      saveState({ connectionId: info.connectionId });
       this.onEvent("tunnel-connected", info);
     });
 
