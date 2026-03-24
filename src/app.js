@@ -15,6 +15,11 @@ function resolveToken() {
     if (cfg.apiKey) return cfg.apiKey;
   } catch {}
 
+  try {
+    const creds = JSON.parse(readFileSync(join(configDir, "poke", "credentials.json"), "utf-8"));
+    if (creds.token) return creds.token;
+  } catch {}
+
   return null;
 }
 

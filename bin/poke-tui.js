@@ -21,12 +21,20 @@ function saveConfig(config) {
   writeFileSync(PUI_CONFIG, JSON.stringify(config, null, 2));
 }
 
+function loadPokeCredentials() {
+  try {
+    const creds = JSON.parse(readFileSync(join(CONFIG_DIR, "poke", "credentials.json"), "utf-8"));
+    if (creds.token) return creds.token;
+  } catch {}
+  return null;
+}
+
 function resolveToken() {
   if (process.env.POKE_API_KEY) return process.env.POKE_API_KEY;
-
   const config = loadConfig();
   if (config.apiKey) return config.apiKey;
-
+  const pokeCreds = loadPokeCredentials();
+  if (pokeCreds) return pokeCreds;
   return null;
 }
 
@@ -44,20 +52,24 @@ async function onboarding() {
   console.log();
   console.log("  🌴 Welcome to Poke TUI");
   console.log();
-  console.log("  To get started, you need a Poke API key.");
+  console.log("  To get started, either:");
   console.log();
-  console.log("  1. Go to https://poke.com/kitchen/api-keys");
-  console.log("  2. Generate a new key");
-  console.log("  3. Paste it below");
+  console.log("  Option 1: Run 'npx poke login' (recommended)");
+  console.log("  Option 2: Paste an API key from https://poke.com/kitchen/api-keys");
   console.log();
 
-  const key = await ask("  API key: ");
+  const key = await ask("  API key (or press Enter if you ran poke login): ");
 
   if (!key) {
+    const pokeCreds = loadPokeCredentials();
+    if (pokeCreds) {
+      console.log();
+      console.log("  Found poke login credentials! Starting...");
+      console.log();
+      return pokeCreds;
+    }
     console.log();
-    console.log("  No key provided. You can set it later:");
-    console.log();
-    console.log("    export POKE_API_KEY=your_key_here");
+    console.log("  No credentials found. Run: npx poke login");
     console.log();
     process.exit(1);
   }
