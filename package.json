@@ -1,6 +1,6 @@
 {
   "name": "poke-tui",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Chat with your Poke AI assistant from the terminal",
   "type": "module",
   "bin": {
