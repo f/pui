@@ -53,6 +53,18 @@ const client = new PokeClient({
   },
 });
 
+// Graceful shutdown on Ctrl+C or SIGTERM (e.g. kill, launchctl stop)
+// This ensures the connection is properly deleted from Poke's servers
+// rather than leaving an orphan that blocks future connections.
+async function gracefulShutdown(signal) {
+  tuiEvents.emit("system", `Shutting down (${signal})…`);
+  try { await client.stop(); } catch {}
+  process.exit(0);
+}
+
+process.once("SIGINT", () => gracefulShutdown("SIGINT"));
+process.once("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
 mcpEvents.on("reply", (text) => {
   tuiEvents.emit("message", "poke", text);
 });
@@ -90,16 +102,33 @@ async function handleCommand(text) {
 
   if (cmd === "help") {
     tuiEvents.emit("system", "Commands:");
+    tuiEvents.emit("system", "  /status           — connection info");
+    tuiEvents.emit("system", "  /cleanup          — delete stale connections");
     tuiEvents.emit("system", "  /webhook create <when> | <do what>");
     tuiEvents.emit("system", '  /webhook fire <#> {"data":"here"}');
-    tuiEvents.emit("system", "  /webhooks");
-    tuiEvents.emit("system", "  /status");
+    tuiEvents.emit("system", "  /webhooks         — list active webhooks");
     return;
   }
 
   if (cmd === "status") {
     tuiEvents.emit("system", client.tunnelInfo ? "Connected and ready." : "Connecting…");
+    if (client.tunnelInfo?.connectionId) {
+      tuiEvents.emit("system", `Connection: ${client.tunnelInfo.connectionId}`);
+    }
     tuiEvents.emit("system", `Webhooks: ${client.webhooks.length}`);
+    return;
+  }
+
+  // Manual cleanup: useful when poke-tui was force-killed previously
+  // and stale connections are blocking new ones
+  if (cmd === "cleanup") {
+    tuiEvents.emit("system", "Cleaning up stale connections…");
+    try {
+      await client.cleanupStaleConnections();
+      tuiEvents.emit("system", "Done.");
+    } catch (err) {
+      tuiEvents.emit("error", `Cleanup failed: ${err.message}`);
+    }
     return;
   }
 
@@ -167,8 +196,6 @@ async function handleCommand(text) {
 
 async function fetchUserName() {
   const base = process.env.POKE_API ?? "https://poke.com/api/v1";
-
-  // Try login token first (from `poke login`), then API key
   const { getToken } = await import("poke");
   const tokens = [getToken(), POKE_API_KEY].filter(Boolean);
 
